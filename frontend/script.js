@@ -15,13 +15,24 @@ async function getJson(url,{auth=false}={}) {
   const r=await fetch(url,{headers:h}); const t=await r.text(); let d={}; try{d=t?JSON.parse(t):{}}catch{d={raw:t}}; return {ok:r.ok,status:r.status,data:d};
 }
 
-function setSignedIn(email){
+function setSignedIn(email) {
   $("#authStatus").textContent = email ? `Signed in as ${email}` : "Not signed in";
   $("#signOutBtn").classList.toggle("hidden", !email);
-  $("#authSection").classList.toggle("hidden", !!email);
+
+  // hide ONLY the login card; keep plans visible so the user can subscribe
+  const loginCard = document.getElementById("loginCard");
+  if (loginCard) loginCard.classList.toggle("hidden", !!email);
+
+  // dashboard shows only when signed in
   $("#dash").classList.toggle("hidden", !email);
-  if(email){ refreshQuota(); refreshJobs(); }
+
+  // enable/disable Subscribe button if not signed in
+  const subBtn = document.getElementById("subscribeBtn");
+  if (subBtn) subBtn.disabled = !email;
+
+  if (email) { refreshQuota(); refreshJobs(); }
 }
+
 
 const planRadios = $$('.plans input[name="plan"]');
 const currentPlan = () => (planRadios.find(r=>r.checked)?.value || "Basic");
