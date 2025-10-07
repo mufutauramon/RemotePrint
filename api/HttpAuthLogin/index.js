@@ -41,3 +41,11 @@ export default async function (context, req) {
     return json(context, 500, { error: "login_failed", detail: String(err?.message || err) });
   }
 }
+import { signJwt, secretFingerprint, secretInfo } from "../lib/jwt.js";
+// ...
+return json(context, 200, {
+  token,
+  secret_fp: secretFingerprint(),
+  secret_info: secretInfo(),        // 👈 add
+  user: { id: u.id, email: u.email, fullName: u.full_name, phone: u.phone, plan: u.subscription_tier }
+});

@@ -52,3 +52,21 @@ export default async function (context, req) {
     }
   };
 }
+import jwt from "jsonwebtoken";
+import { secretFingerprint, secretRaw, secretInfo } from "../lib/jwt.js";
+// ...
+const SECRET = secretRaw();   // ensure same source
+// ...
+context.res = {
+  status: ok ? 200 : 401,
+  headers: { "content-type": "application/json" },
+  body: {
+    ok,
+    saw_header: raw ? raw.slice(0, 32) + "...": null,
+    token_len: token ? token.length : 0,
+    decoded_alg: alg,
+    verify_error: verifyErr,
+    secret_fp: secretFingerprint(),
+    secret_info: secretInfo()   // 👈 add
+  }
+};

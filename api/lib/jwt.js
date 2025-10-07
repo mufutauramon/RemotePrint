@@ -24,3 +24,17 @@ export function getUser(req) {
 export function secretFingerprint() {
   return crypto.createHash("sha256").update(SECRET).digest("hex").slice(0, 8);
 }
+
+// ⬇️ add these for diagnostics
+export function secretRaw() {
+  return SECRET;
+}
+export function secretInfo() {
+  const s = SECRET;
+  return {
+    len: s.length,
+    start5: s.slice(0, 5),
+    end5: s.slice(-5),
+    hex10: Buffer.from(s, "utf8").toString("hex").slice(0, 20)
+  };
+}
