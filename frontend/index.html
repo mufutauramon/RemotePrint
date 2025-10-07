@@ -1,110 +1,41 @@
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>RemotePrint </title>
-  <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-</head>
-<body>
-  <div class="wrap">
-    <header>
-      <h1>RemotePrint</h1>
+<section class="grid" id="authSection">
+  <!-- Auth Card (hidden after sign-in) -->
+  <div class="card" id="loginCard">
+    <h3>Sign in / Create account</h3>
+    <div class="stack">
+      <label>Email
+        <input id="email" type="email" placeholder="you@example.edu.ng" required>
+      </label>
+      <label>Password
+        <input id="password" type="password" placeholder="••••••••" required>
+      </label>
       <div class="row">
-        <div id="authStatus" class="pill">Not signed in</div>
-        <button id="signOutBtn" class="btn secondary hidden">Sign out</button>
+        <button id="signUpBtn" class="btn secondary">Create account</button>
+        <button id="signInBtn" class="btn">Sign in</button>
       </div>
-    </header>
-
-    <section class="grid" id="authSection">
-      <div class="card">
-        <h3>Sign in / Create account</h3>
-        <div class="stack">
-          <label>Email <input id="email" type="email" placeholder="you@example.com"></label>
-          <label>Password <input id="password" type="password" placeholder="••••••••"></label>
-          <div class="row">
-            <button id="signUpBtn" class="btn secondary">Create account</button>
-            <button id="signInBtn" class="btn">Sign in</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3>Choose a subscription</h3>
-        <p class="muted small">Plans map to monthly print quotas.</p>
-        <div class="plans">
-          <label class="plan"><input type="radio" name="plan" value="Basic" checked><h4>Basic</h4><div class="price">₦ 2,000</div><div class="badge">100 B/W pages</div></label>
-          <label class="plan"><input type="radio" name="plan" value="Standard"><h4>Standard</h4><div class="price">₦ 4,000</div><div class="badge">250 B/W pages</div></label>
-          <label class="plan"><input type="radio" name="plan" value="Pro"><h4>Pro</h4><div class="price">₦ 8,000</div><div class="badge">600 B/W pages</div></label>
-        </div>
-        <div class="row"><button id="subscribeBtn" class="btn">Subscribe / Update plan</button></div>
-      </div>
-    </section>
-
-    <section id="dash" class="hidden">
-      <div class="grid">
-        <div class="card">
-          <h3>Upload & Send to Print</h3>
-          <div class="row">
-            <span class="tag">Accepted: PDF, DOCX, PPTX, PNG, JPG</span><span class="tag">Max 30 MB</span>
-          </div>
-          <div class="stack">
-            <input id="fileInput" type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"/>
-            <div class="row">
-              <label style="flex:1">Estimated pages <input id="pages" type="number" min="1" value="5"></label>
-              <label style="flex:1">Color
-                <select id="color"><option value="bw">Black & White</option><option value="color">Color</option></select>
-              </label>
-              <label style="flex:1">Duplex
-                <select id="duplex"><option value="true">Yes</option><option value="false" selected>No</option></select>
-              </label>
-            </div>
-            <div class="row">
-              <button id="priceBtn" class="btn secondary">Price Estimate</button>
-              <div id="priceOut" class="pill">—</div>
-              <button id="sendBtn" class="btn right">Send to Print</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>My Quota</h3>
-          <div class="row">
-            <div><div class="small muted">Plan</div><div id="planName" style="font-weight:700">—</div></div>
-            <div class="right center"><div class="small muted">Pages remaining</div><div id="remaining" style="font-weight:800;font-size:22px">0</div></div>
-          </div>
-          <div class="quota-bar"><div id="quotaFill" class="quota-fill"></div></div>
-        </div>
-      </div>
-        <section class="grid" id="authSection">
-  <!-- Auth Card -->
-  <div class="card" id="loginCard">       <!-- 👈 add this id -->
-    … email/password + Sign in buttons …
+    </div>
   </div>
 
-  <!-- Plans Card -->
-  <div class="card" id="plansCard">       <!-- 👈 add this id -->
-    … plan radios …
+  <!-- Plans Card (stays visible after sign-in) -->
+  <div class="card" id="plansCard">
+    <h3>Choose a subscription</h3>
+    <p class="muted small">Plans map to monthly print quotas.</p>
+    <div class="plans">
+      <label class="plan">
+        <input type="radio" name="plan" value="Basic" checked>
+        <h4>Basic</h4><div class="price">₦ 2,000</div><div class="badge">100 B/W pages</div>
+      </label>
+      <label class="plan">
+        <input type="radio" name="plan" value="Standard">
+        <h4>Standard</h4><div class="price">₦ 4,000</div><div class="badge">250 B/W pages</div>
+      </label>
+      <label class="plan">
+        <input type="radio" name="plan" value="Pro">
+        <h4>Pro</h4><div class="price">₦ 8,000</div><div class="badge">600 B/W pages</div>
+      </label>
+    </div>
     <div class="row" style="margin-top:10px">
       <button id="subscribeBtn" class="btn">Subscribe / Update plan</button>
     </div>
   </div>
 </section>
-      <div class="card">
-        <h3>Job History</h3>
-        <table id="jobsTable">
-          <thead><tr><th>Time</th><th>File</th><th>Pages</th><th>Options</th><th>Status</th><th>Pickup</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <footer class="center small">© RemotePrint NG</footer>
-  </div>
-
-  <div id="toast"></div>
-  <script src="script.js"></script>
-</body>
-</html>
