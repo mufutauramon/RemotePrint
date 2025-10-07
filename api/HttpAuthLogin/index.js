@@ -12,9 +12,7 @@ export default async function (context, req) {
     const b = req.body || {};
     const email = String(b.email || "").trim().toLowerCase();
     const password = String(b.password || "");
-    if (!email || !password) {
-      return json(context, 400, { error: "email and password are required" });
-    }
+    if (!email || !password) return json(context, 400, { error: "email and password are required" });
 
     const attemptHash = `sha1:${Buffer.from(password).toString("base64")}`;
     const sql = getSql();
@@ -33,17 +31,23 @@ export default async function (context, req) {
 
     const u = r.recordset[0];
 
-    // 🔐 FORCE 7-DAY TOKEN HERE
+    // FORCE 7 DAYS (604800 seconds) — unambiguous
     const SECRET = process.env.JWT_SECRET || "dev-secret";
     const token = jwt.sign(
       { sub: String(u.id), email: u.email, is_operator: !!u.is_operator },
       SECRET,
-      { expiresIn: "7d" }                 // <<— 7 days, unambiguous
+      { expiresIn: 604800 }   // 7 days in seconds
     );
+
+    // Decode once to prove the lifetime we just minted
+    const decoded = jwt.decode(token);
+    const now = Math.floor(Date.now()/1000);
+    const expSeconds = decoded?.exp ? (decoded.exp - now) : null;
 
     return json(context, 200, {
       token,
       secret_fp: secretFingerprint(),
+      exp_seconds: expSeconds,           // 👈 you should see ~604800 here
       user: {
         id: u.id,
         email: u.email,
