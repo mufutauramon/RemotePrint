@@ -40,4 +40,3 @@ CREATE TABLE Jobs(
   created_at DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
 );
 
-Server=tcp:sqlserverpractices.database.windows.net,1433;Initial Catalog=ramon;Persist Security Info=False;User ID=rpapp;Password=YourStrongP@ssw0rd;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
