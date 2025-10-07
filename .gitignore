@@ -1,0 +1,11 @@
+
+# Node / Functions
+api/node_modules
+api/.funcpack
+api/.azure-functions-core-tools
+npm-debug.log
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
