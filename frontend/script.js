@@ -1,118 +1,253 @@
+// ---------- tiny DOM helpers ----------
+const $  = (sel) => document.querySelector(sel);
+const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-const $ = s => document.querySelector(s);
-const $$= s => Array.from(document.querySelectorAll(s));
-function toast(msg, type="success"){const w=$("#toast");const d=document.createElement("div");d.className=`toast ${type}`;d.textContent=msg;w.appendChild(d);setTimeout(()=>d.remove(),3500);}
-
-async function postJson(url, body={}, {auth=false}={}) {
-  const h={"Content-Type":"application/json"};
-  if(auth){const t=localStorage.getItem("rp_token"); if(t) h.Authorization=`Bearer ${t}`;}
-  const r = await fetch(url,{method:"POST",headers:h,body:JSON.stringify(body)});
-  const text = await r.text(); let data={}; try{data=text?JSON.parse(text):{}}catch{data={raw:text}};
-  return {ok:r.ok,status:r.status,data};
-}
-async function getJson(url,{auth=false}={}) {
-  const h={}; if(auth){const t=localStorage.getItem("rp_token"); if(t) h.Authorization=`Bearer ${t}`;}
-  const r=await fetch(url,{headers:h}); const t=await r.text(); let d={}; try{d=t?JSON.parse(t):{}}catch{d={raw:t}}; return {ok:r.ok,status:r.status,data:d};
+// ---------- toast ----------
+function toast(msg, type = "success") {
+  const wrap = $("#toast");
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
 }
 
+// ---------- HTTP helpers ----------
+async function postJson(url, body = {}, { auth = false } = {}) {
+  const headers = { "Content-Type": "application/json" };
+  if (auth) {
+    const t = localStorage.getItem("rp_token");
+    if (t) headers["Authorization"] = `Bearer ${t}`;
+  }
+  const r = await fetch(url, { method: "POST", headers, body: JSON.stringify(body) });
+  const text = await r.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  return { ok: r.ok, status: r.status, data };
+}
+
+async function getJson(url, { auth = false } = {}) {
+  const headers = {};
+  if (auth) {
+    const t = localStorage.getItem("rp_token");
+    if (t) headers["Authorization"] = `Bearer ${t}`;
+  }
+  const r = await fetch(url, { headers });
+  const text = await r.text();
+  let data = {};
+  try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+  return { ok: r.ok, status: r.status, data };
+}
+
+// ---------- UI state ----------
 function setSignedIn(email) {
+  // top badge & sign-out
   $("#authStatus").textContent = email ? `Signed in as ${email}` : "Not signed in";
   $("#signOutBtn").classList.toggle("hidden", !email);
 
-  // hide ONLY the login card; keep plans visible so the user can subscribe
+  // hide ONLY the login card; keep plans visible so user can subscribe
   const loginCard = document.getElementById("loginCard");
   if (loginCard) loginCard.classList.toggle("hidden", !!email);
 
-  // dashboard shows only when signed in
+  // dashboard visible only when signed in
   $("#dash").classList.toggle("hidden", !email);
 
-  // enable/disable Subscribe button if not signed in
+  // disable subscribe when logged out
   const subBtn = document.getElementById("subscribeBtn");
   if (subBtn) subBtn.disabled = !email;
 
   if (email) { refreshQuota(); refreshJobs(); }
 }
 
+// ---------- elements ----------
+const emailEl    = $("#email");
+const pwdEl      = $("#password");
+const signInBtn  = $("#signInBtn");
+const signUpBtn  = $("#signUpBtn");
+const signOutBtn = $("#signOutBtn");
 
-const planRadios = $$('.plans input[name="plan"]');
-const currentPlan = () => (planRadios.find(r=>r.checked)?.value || "Basic");
+const subscribeBtn = $("#subscribeBtn");
+const planRadios   = $$('.plans input[name="plan"]');
 
-$("#signUpBtn").addEventListener("click", async ()=>{
-  const email=$("#email").value.trim().toLowerCase();
-  const password=$("#password").value;
-  if(!email||!password){toast("Enter email + password","info"); return;}
-  const res=await postJson("/api/auth/signup",{email,password,fullName:"",phone:"",plan:currentPlan()});
-  if(res.ok){ localStorage.setItem("rp_email",email); localStorage.setItem("rp_token",res.data.token||""); setSignedIn(email); toast("Account created.","success"); }
-  else toast(res.data?.error||"Signup failed","error");
-});
-$("#signInBtn").addEventListener("click", async ()=>{
-  const email=$("#email").value.trim().toLowerCase();
-  const password=$("#password").value;
-  const res=await postJson("/api/auth/login",{email,password});
-  if(res.ok){ localStorage.setItem("rp_email",email); localStorage.setItem("rp_token",res.data.token||""); setSignedIn(email); toast("Signed in","success"); }
-  else toast(res.data?.error||"Login failed","error");
-});
-$("#signOutBtn").addEventListener("click", ()=>{ localStorage.clear(); setSignedIn(null); toast("Signed out","success"); });
+// quota / jobs
+const planNameEl = $("#planName");
+const remainingEl= $("#remaining");
+const quotaFill  = $("#quotaFill");
+const jobsBody   = $("#jobsTable tbody");
 
-$("#subscribeBtn").addEventListener("click", async ()=>{
-  const planName=currentPlan();
-  const res=await postJson("/api/subscribe",{planName},{auth:true});
-  if(res.ok){ toast("Subscription updated","success"); refreshQuota(); }
-  else toast(res.data?.error||"Subscribe failed","error");
-});
-
-async function refreshQuota(){
-  const res=await getJson("/api/me",{auth:true});
-  const sub=res.data?.subscription||null;
-  $("#planName").textContent=sub?.plan||"—";
-  const remain=Number(sub?.pages_remaining||0), total=Number(sub?.quota_pages||0);
-  $("#remaining").textContent=String(remain);
-  const pct = total? Math.round((remain/total)*100):0; $("#quotaFill").style.width=`${pct}%`;
+// ---------- plan helpers ----------
+function currentPlan() {
+  const r = planRadios.find(r => r.checked);
+  return r ? r.value : "Basic";
 }
 
-async function refreshJobs(){
-  const res=await getJson("/api/jobs",{auth:true});
-  const list = Array.isArray(res.data)? res.data : (res.data.jobs||[]);
-  const body=$("#jobsTable tbody"); body.innerHTML="";
-  for(const j of list){
-    const created=j.created_at || j.createdAt;
-    const tr=document.createElement("tr");
-    tr.innerHTML=`<td>${created?new Date(created).toLocaleString():"—"}</td>
-      <td>${j.file_name||j.filename||"—"}</td>
-      <td>${j.pages||"—"}</td>
-      <td>${(j.color? "Color":"B/W")} • ${(j.duplex?"Duplex":"Simplex")}</td>
-      <td>${j.status||"Queued"}</td>
-      <td>${j.pickup_code||""}</td>`;
-    body.appendChild(tr);
+// ---------- auth ----------
+signUpBtn.addEventListener("click", async () => {
+  const email = emailEl.value.trim().toLowerCase();
+  const password = pwdEl.value;
+  if (!email || !password) return toast("Enter email and password first.", "info");
+
+  const res = await postJson("/api/auth/signup", {
+    email, password, fullName: "", phone: "", plan: currentPlan()
+  });
+  if (res.ok) {
+    localStorage.setItem("rp_email", email);
+    localStorage.setItem("rp_token", res.data.token || "");
+    setSignedIn(email);
+    toast("Account created.", "success");
+  } else {
+    toast(res.data?.error || `Signup failed (${res.status})`, "error");
+  }
+});
+
+signInBtn.addEventListener("click", async () => {
+  const email = emailEl.value.trim().toLowerCase();
+  const password = pwdEl.value;
+  if (!email || !password) return toast("Enter email and password.", "info");
+
+  const res = await postJson("/api/auth/login", { email, password });
+  if (res.ok) {
+    localStorage.setItem("rp_email", email);
+    localStorage.setItem("rp_token", res.data.token || "");
+    setSignedIn(email);
+    toast("Signed in.", "success");
+  } else {
+    toast(res.data?.error || `Login failed (${res.status})`, "error");
+  }
+});
+
+signOutBtn.addEventListener("click", () => {
+  localStorage.removeItem("rp_token");
+  localStorage.removeItem("rp_email");
+  setSignedIn(null);
+  toast("Signed out.", "success");
+});
+
+// ---------- subscribe ----------
+subscribeBtn.addEventListener("click", async () => {
+  const token = localStorage.getItem("rp_token");
+  if (!token) return toast("Please sign in first.", "info");
+
+  const planName = currentPlan();
+  const res = await postJson("/api/subscribe", { planName }, { auth: true });
+  if (res.ok) {
+    toast(`Subscription set to ${planName}.`, "success");
+    await refreshQuota();
+  } else if (res.status === 401) {
+    toast("Session expired. Please sign in again.", "info");
+    localStorage.removeItem("rp_token"); localStorage.removeItem("rp_email");
+    setSignedIn(null);
+  } else {
+    toast(res.data?.error || `Subscribe failed (${res.status})`, "error");
+  }
+});
+
+// ---------- quota + jobs ----------
+async function refreshQuota() {
+  const res = await getJson("/api/me", { auth: true });
+  if (!res.ok) {
+    if (res.status === 401) {
+      toast("Session expired. Please sign in again.", "info");
+      localStorage.removeItem("rp_token"); localStorage.removeItem("rp_email");
+      setSignedIn(null);
+    }
+    return;
+  }
+
+  const sub = res.data?.subscription || null;
+  planNameEl.textContent = sub?.plan || "—";
+  const remain = Number(sub?.pages_remaining || 0);
+  const total  = Number(sub?.quota_pages || 0);
+  remainingEl.textContent = String(remain);
+  quotaFill.style.width = total ? `${Math.round((remain / total) * 100)}%` : "0%";
+  if (!sub) toast("No active plan. Choose a plan and click Subscribe.", "info");
+}
+
+async function refreshJobs() {
+  const res = await getJson("/api/jobs", { auth: true });
+  if (!res.ok) return;
+  const list = Array.isArray(res.data) ? res.data : (res.data.jobs || []);
+  jobsBody.innerHTML = "";
+  for (const j of list) {
+    const created = j.created_at || j.createdAt;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${created ? new Date(created).toLocaleString() : "—"}</td>
+      <td>${j.file_name || j.filename || "—"}</td>
+      <td>${j.pages ?? "—"}</td>
+      <td>${(j.color ? "Color" : "B/W")} • ${(j.duplex ? "Duplex" : "Simplex")}</td>
+      <td>${j.status || "Queued"}</td>
+      <td>${j.pickup_code || ""}</td>
+    `;
+    jobsBody.appendChild(tr);
   }
 }
 
-$("#priceBtn").addEventListener("click", ()=>{
-  const pages=parseInt($("#pages").value||"0",10);
-  const perSide = ($("#color").value==="color") ? 70 : 25;
-  $("#priceOut").textContent = pages? `₦ ${(perSide*pages).toLocaleString()}` : "—";
+// ---------- price (client-side quick estimate) ----------
+$("#priceBtn")?.addEventListener("click", () => {
+  const pages = parseInt($("#pages").value || "0", 10);
+  const perSide = ($("#color").value === "color") ? 70 : 25;
+  $("#priceOut").textContent = pages ? `₦ ${(perSide * pages).toLocaleString()}` : "—";
 });
 
-$("#sendBtn").addEventListener("click", async ()=>{
-  const file=$("#fileInput").files[0];
-  const pages=parseInt($("#pages").value||"0",10);
-  if(!file||!pages){ toast("Choose a file and pages","info"); return; }
+// ---------- upload flow: SAS -> PUT -> queue job ----------
+$("#sendBtn")?.addEventListener("click", async () => {
+  try {
+    if (!localStorage.getItem("rp_token")) return toast("Please sign in first.", "info");
 
-  const r1 = await postJson("/api/blob/sas",{fileName:file.name, contentType:file.type||"application/octet-stream"});
-  if(!r1.ok){ toast("SAS failed","error"); return; }
+    const file = $("#fileInput").files[0];
+    const pages = parseInt($("#pages").value || "0", 10);
+    if (!file || !pages) return toast("Choose a file and enter pages.", "info");
 
-  const put = await fetch(r1.data.uploadUrl, { method:"PUT", headers:{ "x-ms-blob-type":"BlockBlob", "content-type":file.type||"application/octet-stream" }, body:file });
-  if(!put.ok){ toast("Blob upload failed","error"); return; }
+    // 1) SAS
+    const r1 = await postJson("/api/blob/sas", {
+      fileName: file.name,
+      contentType: file.type || "application/octet-stream"
+    });
+    if (!r1.ok) return toast(r1.data?.error || "Could not get upload URL.", "error");
 
-  const color=$("#color").value; const duplex=$("#duplex").value==="true"?"Yes":"No";
-  const r2 = await postJson("/api/jobs",{ fileName:file.name, blobUrl:r1.data.blobUrl, pages, color, duplex },{auth:true});
-  if(!r2.ok){ toast(r2.data?.error||"Queue failed","error"); return; }
+    // 2) Upload to Blob
+    const put = await fetch(r1.data.uploadUrl, {
+      method: "PUT",
+      headers: { "x-ms-blob-type": "BlockBlob", "content-type": file.type || "application/octet-stream" },
+      body: file
+    });
+    if (!put.ok) return toast("Blob upload failed.", "error");
 
-  toast("Uploaded and queued","success");
-  refreshJobs(); refreshQuota();
+    // 3) Confirm job (deducts quota)
+    const color  = $("#color").value;                 // "bw" | "color"
+    const duplex = $("#duplex").value === "true";     // true/false
+    const r2 = await postJson("/api/jobs", {
+      fileName: file.name,
+      blobUrl: r1.data.blobUrl,
+      pages,
+      color,
+      duplex
+    }, { auth: true });
+
+    if (!r2.ok) {
+      if (r2.status === 402) return toast("Insufficient quota. Choose a plan or lower pages.", "error");
+      if (r2.status === 401) {
+        toast("Session expired. Please sign in again.", "info");
+        localStorage.removeItem("rp_token"); localStorage.removeItem("rp_email");
+        setSignedIn(null);
+        return;
+      }
+      return toast(r2.data?.error || "Unable to queue job.", "error");
+    }
+
+    toast("Uploaded and queued.", "success");
+    await refreshQuota();
+    await refreshJobs();
+  } catch (e) {
+    console.error(e);
+    toast(e.message || "Upload error.", "error");
+  }
 });
 
-(function(){
-  const email=localStorage.getItem("rp_email"); const token=localStorage.getItem("rp_token");
+// ---------- boot ----------
+(function init() {
+  const email = localStorage.getItem("rp_email");
+  const token = localStorage.getItem("rp_token");
   setSignedIn(email && token ? email : null);
 })();
