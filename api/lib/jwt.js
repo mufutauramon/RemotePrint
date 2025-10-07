@@ -4,7 +4,7 @@ import crypto from "crypto";
 
 const SECRET = process.env.JWT_SECRET || "dev-secret"; // set in Azure!
 
-export function signJwt(payload, { expiresInSeconds = 60 * 60 * 12 } = {}) {
+export function signJwt(payload, { expiresInSeconds = 60 * 60 * 24 * 7 } = {}) {
   return jwt.sign(payload, SECRET, { expiresIn: expiresInSeconds });
 }
 
