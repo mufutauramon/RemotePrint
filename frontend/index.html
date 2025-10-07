@@ -6,7 +6,6 @@
   <title>RemotePrint</title>
   <link rel="stylesheet" href="style.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <!-- simple toast styles (optional) -->
   <style>
     #toast{position:fixed;right:16px;top:16px;z-index:9999;max-width:90vw}
     .toast{margin:8px 0;padding:10px 12px;border-radius:8px;background:#fff;color:#111;border-left:6px solid #888;box-shadow:0 6px 16px rgba(0,0,0,.15)}
@@ -24,9 +23,9 @@
       </div>
     </header>
 
-    <!-- AUTH AREA (login hides after sign-in; plans stays visible) -->
+    <!-- AUTH AREA -->
     <section class="grid" id="authSection">
-      <!-- Login card -->
+      <!-- Login card (hides after sign-in) -->
       <div class="card" id="loginCard">
         <h3>Sign in / Create account</h3>
         <div class="stack">
@@ -43,7 +42,7 @@
         </div>
       </div>
 
-      <!-- Plans card (remains visible after sign-in so user can subscribe) -->
+      <!-- Plans card (stays visible after sign-in) -->
       <div class="card" id="plansCard">
         <h3>Choose a subscription</h3>
         <p class="muted small">Plans map to monthly print quotas.</p>

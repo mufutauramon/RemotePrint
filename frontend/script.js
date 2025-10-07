@@ -1,6 +1,5 @@
 // ---------- tiny DOM helpers ----------
 const $  = (sel) => document.querySelector(sel);
-const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
 // ---------- toast ----------
 function toast(msg, type = "success") {
@@ -26,7 +25,6 @@ async function postJson(url, body = {}, { auth = false } = {}) {
   try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
   return { ok: r.ok, status: r.status, data };
 }
-
 async function getJson(url, { auth = false } = {}) {
   const headers = {};
   if (auth) {
@@ -45,26 +43,16 @@ function setSignedIn(email) {
   $("#authStatus").textContent = email ? `Signed in as ${email}` : "Not signed in";
   $("#signOutBtn").classList.toggle("hidden", !email);
 
-  // hide ONLY login card so Plans stays visible for subscribe
+  // Hide only login card (keep plans visible so user can subscribe)
   const loginCard = $("#loginCard");
   if (loginCard) loginCard.classList.toggle("hidden", !!email);
 
-  // dashboard visible only when signed in
+  // Dashboard visible only when signed in
   $("#dash").classList.toggle("hidden", !email);
 
-  // enable/disable subscribe button
+  // Enable/disable subscribe button
   const subBtn = $("#subscribeBtn");
   if (subBtn) subBtn.disabled = !email;
-
-  // try loading quota/jobs but DO NOT toast on 401 here
-  if (email) { refreshQuota({ quiet401: true }); refreshJobs(); }
-}
-
-// ---------- plan helpers ----------
-const planRadios = $$('.plans input[name="plan"]');
-function currentPlan() {
-  const r = planRadios.find(r => r.checked);
-  return r ? r.value : "Basic";
 }
 
 // ---------- auth ----------
@@ -73,7 +61,7 @@ $("#signUpBtn").addEventListener("click", async () => {
   const password = $("#password").value;
   if (!email || !password) return toast("Enter email and password first.", "info");
 
-  const res = await postJson("/api/auth/signup", { email, password, fullName: "", phone: "", plan: currentPlan() });
+  const res = await postJson("/api/auth/signup", { email, password });
   if (res.ok) {
     localStorage.setItem("rp_email", email);
     localStorage.setItem("rp_token", res.data.token || "");
@@ -110,15 +98,16 @@ $("#signOutBtn").addEventListener("click", () => {
 // ---------- subscribe ----------
 $("#subscribeBtn").addEventListener("click", async () => {
   if (!localStorage.getItem("rp_token")) return toast("Please sign in first.", "info");
-  const planName = currentPlan();
+  const planName = document.querySelector('.plans input[name="plan"]:checked')?.value || "Basic";
+
   const res = await postJson("/api/subscribe", { planName }, { auth: true });
   if (res.ok) {
     toast(`Subscription set to ${planName}.`, "success");
-    await refreshQuota({ quiet401: true });
+    await refreshQuota();   // load quota now that sub exists
+    await refreshJobs();    // and jobs
   } else if (res.status === 401) {
-    // session mismatch — clear and let user sign back in
-    localStorage.removeItem("rp_token");
-    localStorage.removeItem("rp_email");
+    // token mismatch/expired
+    localStorage.removeItem("rp_token"); localStorage.removeItem("rp_email");
     setSignedIn(null);
     toast("Session expired. Please sign in again.", "info");
   } else {
@@ -126,34 +115,25 @@ $("#subscribeBtn").addEventListener("click", async () => {
   }
 });
 
-// ---------- quota + jobs ----------
-async function refreshQuota({ quiet401 = false } = {}) {
+// ---------- quota + jobs (only called after successful subscribe/upload) ----------
+async function refreshQuota() {
   const res = await getJson("/api/me", { auth: true });
-  if (!res.ok) {
-    if (res.status === 401 && !quiet401) {
-      localStorage.removeItem("rp_token"); localStorage.removeItem("rp_email");
-      setSignedIn(null);
-      toast("Session expired. Please sign in again.", "info");
-    }
-    // leave plan/remaining as is
-    return;
-  }
+  if (!res.ok) return; // stay quiet if 401
   const sub = res.data?.subscription || null;
+
   $("#planName").textContent = sub?.plan || "—";
   const remain = Number(sub?.pages_remaining || 0);
   const total  = Number(sub?.quota_pages || 0);
   $("#remaining").textContent = String(remain);
   $("#quotaFill").style.width = total ? `${Math.round((remain / total) * 100)}%` : "0%";
-
-  // only nudge if we actually fetched successfully and there is no sub
-  if (!sub) toast("No active plan. Choose a plan and click Subscribe.", "info");
 }
 
 async function refreshJobs() {
   const res = await getJson("/api/jobs", { auth: true });
   if (!res.ok) return;
   const list = Array.isArray(res.data) ? res.data : (res.data.jobs || []);
-  const body = $("#jobsTable tbody"); body.innerHTML = "";
+  const body = document.querySelector("#jobsTable tbody");
+  body.innerHTML = "";
   for (const j of list) {
     const created = j.created_at || j.createdAt;
     const tr = document.createElement("tr");
@@ -184,12 +164,14 @@ $("#sendBtn")?.addEventListener("click", async () => {
     const pages = parseInt($("#pages").value || "0", 10);
     if (!file || !pages) return toast("Choose a file and enter pages.", "info");
 
+    // 1) SAS
     const r1 = await postJson("/api/blob/sas", {
       fileName: file.name,
       contentType: file.type || "application/octet-stream"
     });
     if (!r1.ok) return toast(r1.data?.error || "Could not get upload URL.", "error");
 
+    // 2) Upload to Blob
     const put = await fetch(r1.data.uploadUrl, {
       method: "PUT",
       headers: { "x-ms-blob-type": "BlockBlob", "content-type": file.type || "application/octet-stream" },
@@ -197,6 +179,7 @@ $("#sendBtn")?.addEventListener("click", async () => {
     });
     if (!put.ok) return toast("Blob upload failed.", "error");
 
+    // 3) Confirm job (deducts quota)
     const color  = $("#color").value;            // "bw" | "color"
     const duplex = $("#duplex").value === "true";
     const r2 = await postJson("/api/jobs", {
@@ -218,7 +201,7 @@ $("#sendBtn")?.addEventListener("click", async () => {
     }
 
     toast("Uploaded and queued.", "success");
-    await refreshQuota({ quiet401: true });
+    await refreshQuota();
     await refreshJobs();
   } catch (e) {
     console.error(e);
